@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+
+  /* Base surfaces */
+  --background: #0a0a0b;
+  --foreground: #ededed;
+  --surface: #121214;
+  --surface-2: #18181b;
+  --border: rgba(255, 255, 255, 0.08);
+  --muted: #a1a1aa;
+
+  /* Two-player accents */
+  --accent-p1: #ff6b2c;
+  --accent-p1-soft: rgba(255, 107, 44, 0.12);
+  --accent-p2: #22d3ee;
+  --accent-p2-soft: rgba(34, 211, 238, 0.12);
+
+  /* Live indicator */
+  --live: #ef4444;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-p1: var(--accent-p1);
+  --color-p1-soft: var(--accent-p1-soft);
+  --color-p2: var(--accent-p2);
+  --color-p2-soft: var(--accent-p2-soft);
+  --color-live: var(--live);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html,
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+body {
+  font-family: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI",
+    Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Live dot pulse used on the "LIVE" pill */
+@keyframes live-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+}
+
+.live-dot {
+  animation: live-pulse 1.6s ease-out infinite;
+}
+
+/* Shimmer for skeleton loaders */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}

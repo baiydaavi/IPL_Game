@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FF6B2C" />
+      <stop offset="100%" stop-color="#B43D0E" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="108" fill="url(#g)" />
+  <g fill="#0a0a0b" font-family="Geist, Inter, system-ui, -apple-system, sans-serif" font-weight="700" text-anchor="middle">
+    <text x="256" y="316" font-size="246" letter-spacing="-10">iD</text>
+  </g>
+</svg>
