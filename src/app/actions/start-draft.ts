@@ -81,7 +81,18 @@ export async function startDraft({
     return { ok: false, error: "Could not look up players." };
   }
 
-  const users = (allUsers ?? []) as UserRow[];
+  // Filter the users table down to the cohort that matches the current
+  // run mode. In demo mode we only care about the seeded @demo.local
+  // accounts; in normal mode we ignore them (they're leftover seed rows
+  // that would otherwise trip the "two players only" guard).
+  const allUserRows = (allUsers ?? []) as UserRow[];
+  const inDemo = isIdentityBypassMode();
+  const isDemoEmail = (email: string | null) =>
+    typeof email === "string" && email.endsWith("@demo.local");
+  const users = allUserRows.filter((u) =>
+    inDemo ? isDemoEmail(u.email) : !isDemoEmail(u.email),
+  );
+
   if (users.length < 2) {
     return {
       ok: false,
