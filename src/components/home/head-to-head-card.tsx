@@ -32,14 +32,17 @@ export function HeadToHeadCard({
 
   return (
     <div className="rounded-2xl border border-border bg-surface-1 px-4 py-4">
-      <div className="flex items-baseline justify-between gap-3">
+      <div className="flex items-stretch justify-between gap-3">
         <div className="flex-1">
           <div className={cn("text-xs font-medium uppercase tracking-wider truncate", accentA.text)}>
             {a.user.id === currentUserId ? "You" : a.user.display_name}
           </div>
           <div className="font-mono text-3xl font-semibold tabular-nums">{a.wins}</div>
         </div>
-        <div className="text-sm text-muted">—</div>
+        <div className="flex flex-col">
+          <div aria-hidden className="text-xs font-medium uppercase tracking-wider">&nbsp;</div>
+          <div className="flex flex-1 items-center font-mono text-3xl font-semibold text-muted">—</div>
+        </div>
         <div className="flex-1 text-right">
           <div className={cn("text-xs font-medium uppercase tracking-wider truncate", accentB.text)}>
             {b.user.id === currentUserId ? "You" : b.user.display_name}
