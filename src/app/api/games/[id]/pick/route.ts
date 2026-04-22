@@ -7,6 +7,51 @@ import { lockIfReady } from "@/lib/game-lifecycle";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 
 /**
+ * GET /api/games/[id]/pick
+ *
+ * Lightweight poller endpoint for the draft card. Returns the current
+ * picks array so the client can detect picks made by the opponent even
+ * when Supabase Realtime is misconfigured or the socket has dropped.
+ */
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id: gameId } = await params;
+
+  const user = await getEffectiveUser();
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const admin = createSupabaseServiceClient();
+
+  const { data: members } = await admin
+    .from("game_members")
+    .select("user_id")
+    .eq("game_id", gameId);
+  const isMember = (members ?? []).some((m) => m.user_id === user.id);
+  if (!isMember) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
+  const { data: picks, error } = await admin
+    .from("picks")
+    .select("*")
+    .eq("game_id", gameId)
+    .order("turn_index", { ascending: true });
+  if (error) {
+    console.error("[GET /api/games/[id]/pick] picks read failed", error);
+    return NextResponse.json({ error: "db_error" }, { status: 500 });
+  }
+
+  return NextResponse.json(
+    { picks: picks ?? [] },
+    { headers: { "Cache-Control": "no-store" } },
+  );
+}
+
+/**
  * POST /api/games/[id]/pick
  *
  * Body:

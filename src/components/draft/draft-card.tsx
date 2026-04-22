@@ -66,8 +66,7 @@ export function DraftCard({
 
   // Realtime subscription to picks for this game. When the browser client
   // can't be initialised (e.g. env vars not available in the bundle yet),
-  // we silently skip — `router.refresh()` after a pick still keeps state
-  // up to date, just without the instant push.
+  // we silently skip — the polling fallback below keeps state fresh.
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
     if (!supabase) return;
@@ -95,6 +94,68 @@ export function DraftCard({
       void supabase.removeChannel(channel);
     };
   }, [game.id]);
+
+  // Poll for picks every 3s while the draft is active. Belt-and-braces
+  // for the realtime subscription: if the publication isn't wired on the
+  // Supabase project or the socket drops, the UI still catches up within
+  // a few seconds. Stops polling once all 8 picks are in or the tab is
+  // hidden.
+  useEffect(() => {
+    if (turnState.isComplete) return;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const poll = async () => {
+      if (cancelled) return;
+      if (document.visibilityState === "hidden") {
+        timer = setTimeout(poll, 5000);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/games/${game.id}/pick`, {
+          cache: "no-store",
+          credentials: "same-origin",
+        });
+        if (res.ok) {
+          const data = (await res.json()) as { picks: PickRow[] };
+          if (!cancelled && Array.isArray(data.picks)) {
+            setPicks((prev) => {
+              if (prev.length === data.picks.length) {
+                const prevLastId = prev[prev.length - 1]?.id ?? null;
+                const nextLastId =
+                  data.picks[data.picks.length - 1]?.id ?? null;
+                if (prevLastId === nextLastId) return prev;
+              }
+              return [...data.picks].sort(
+                (a, b) => a.turn_index - b.turn_index,
+              );
+            });
+          }
+        }
+      } catch {
+        // Network blips are fine — next tick will retry.
+      } finally {
+        if (!cancelled) timer = setTimeout(poll, 3000);
+      }
+    };
+
+    timer = setTimeout(poll, 3000);
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible" && !cancelled) {
+        if (timer) clearTimeout(timer);
+        void poll();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [game.id, turnState.isComplete]);
 
   const submit = useCallback(
     async (body: object) => {
