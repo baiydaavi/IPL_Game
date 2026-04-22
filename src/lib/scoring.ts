@@ -339,11 +339,16 @@ export function computeScore({
   }
 
   // Bowler-coverage penalty (rule 3). The penalty only fires if NONE of the
-  // user's 3 drafted picks bowled a ball. When it fires, its shape depends
-  // on whether the user designated a bowler before match start:
+  // user's scoring contributions bowled a ball. When it fires, its shape
+  // depends on whether the user designated a bowler before match start:
   //   - Designated: zero just that player's contribution.
   //   - Not designated: zero all 3.
   // Team bonus is unaffected either way.
+  //
+  // We check `breakdown.players` (not just drafted `picks`) so that an
+  // impact-sub redirection counts as coverage: if your drafted player was
+  // replaced and the replacement bowled, the penalty does not fire — the
+  // rule is about whether your team of *contributors* covered bowling.
   const picksByUser = new Map<string, PickRow[]>();
   for (const pick of picks) {
     if (pick.pick_type !== "player" || !pick.player_id) continue;
@@ -355,24 +360,21 @@ export function computeScore({
   for (const d of bowlerDesignations) designationByUser.set(d.user_id, d);
 
   for (const [userId, score] of byUser) {
-    const userPicks = picksByUser.get(userId) ?? [];
-    const anyBowled = userPicks.some((p) => {
-      if (!p.player_id) return false;
-      const s = stats.get(p.player_id);
-      return (s?.overs ?? 0) > 0;
-    });
+    const anyBowled = score.breakdown.players.some((c) => c.bowled);
     if (anyBowled) continue;
 
     const designation = designationByUser.get(userId);
     if (designation) {
-      // Zero only the designated player's contribution. Other picks keep
-      // their points. We have to recompute the user-level totals from the
-      // (possibly mutated) remaining contributions since we don't know
-      // without re-summing how much the designated slot contributed
-      // (impact-sub redirection may have added extra slots tied to the
-      // same underlying pick).
+      // Zero the designated player's contribution AND its impact-sub
+      // replacement (if any). The rule treats the designated slot as
+      // a single commitment: if the designated bowler was subbed out
+      // and the sub also didn't bowl, neither side of that slot earns
+      // points. Other drafted picks keep their points.
       for (const contrib of score.breakdown.players) {
-        if (contrib.player_id === designation.player_id) {
+        const isDesignated = contrib.player_id === designation.player_id;
+        const isSubForDesignated =
+          contrib.impact_sub_from?.player_id === designation.player_id;
+        if (isDesignated || isSubForDesignated) {
           contrib.runs_points = 0;
           contrib.wickets_points = 0;
           contrib.total = 0;
