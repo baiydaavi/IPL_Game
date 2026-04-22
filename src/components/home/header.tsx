@@ -4,7 +4,7 @@ export function HomeHeader({ user }: { user: UserRow }) {
   return (
     <header className="flex items-center justify-between">
       <span className="font-mono text-xs uppercase tracking-widest text-muted">
-        IPL Draft
+        Gully IPL Fantasy
       </span>
       <form action="/auth/signout" method="post">
         <button

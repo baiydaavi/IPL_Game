@@ -26,13 +26,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "IPL Draft",
-  description: "A private 2-player IPL draft game.",
+  title: "Gully IPL Fantasy",
+  description: "A private 2-player IPL fantasy game for you and a friend.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "IPL Draft",
+    title: "Gully",
   },
 };
 

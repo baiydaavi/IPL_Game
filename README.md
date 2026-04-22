@@ -1,9 +1,9 @@
-# IPL Draft
+# Gully IPL Fantasy
 
-A private 2-player IPL draft game. Each day's IPL match becomes a mini-draft: you
-and a friend alternate picking 3 players each, then each pick a predicted winning
-team. After the match, points are tallied from the scorecard and the winner gets
-first pick tomorrow.
+A poor man's IPL fantasy game for you and one friend. Each day's IPL match
+becomes a mini-draft: you and a friend alternate picking 3 players each, then
+each pick a predicted winning team. After the match, points are tallied from
+the scorecard and the winner gets first pick tomorrow.
 
 ## Stack
 

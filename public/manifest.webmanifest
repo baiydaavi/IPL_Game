@@ -1,7 +1,7 @@
 {
-  "name": "IPL Draft",
-  "short_name": "IPL Draft",
-  "description": "A private 2-player IPL draft game.",
+  "name": "Gully IPL Fantasy",
+  "short_name": "Gully",
+  "description": "A private 2-player IPL fantasy game for you and a friend.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0b",

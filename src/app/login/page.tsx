@@ -5,7 +5,7 @@ import { isIdentityBypassMode } from "@/lib/demo";
 import { LoginForm } from "./login-form";
 
 export const metadata = {
-  title: "Sign in — IPL Draft",
+  title: "Sign in — Gully IPL Fantasy",
 };
 
 export default function LoginPage({
@@ -20,7 +20,7 @@ export default function LoginPage({
     <main className="mx-auto flex min-h-screen w-full max-w-sm flex-col justify-center gap-8 px-6 py-12">
       <div className="flex flex-col gap-2">
         <span className="font-mono text-xs uppercase tracking-widest text-muted">
-          IPL Draft
+          Gully IPL Fantasy
         </span>
         <h1 className="text-3xl font-semibold tracking-tight">Sign in</h1>
         <p className="text-sm text-muted">
