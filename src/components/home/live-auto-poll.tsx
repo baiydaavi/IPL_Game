@@ -47,6 +47,10 @@ export function LiveAutoPoll({ gameId }: { gameId: string }) {
       }
     }
 
+    // Fire once on mount so the first live view has numbers immediately
+    // rather than waiting up to POLL_INTERVAL_MS. The API route's 30s
+    // per-user cooldown still guards against duplicate tab spam.
+    void tick();
     const handle = setInterval(tick, POLL_INTERVAL_MS);
     // Also poll on tab-visibility gain so returning to the tab shows
     // fresh numbers immediately instead of waiting up to 60s.

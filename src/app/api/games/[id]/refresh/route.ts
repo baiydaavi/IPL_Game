@@ -66,8 +66,21 @@ export async function POST(
     });
 
     let scored: { scored: boolean } = { scored: false };
-    if (isFinal && game.status === "locked") {
-      scored = await scoreGame(gameId, { client: admin });
+    if (game.status === "locked") {
+      if (isFinal) {
+        // End-of-match: full scoring run (writes scores, flips status,
+        // sets winner). Idempotent once status = "scored".
+        scored = await scoreGame(gameId, { client: admin });
+      } else {
+        // Mid-match: write a provisional `scores` snapshot so the live
+        // match card shows running totals, without prematurely sealing
+        // the game's lifecycle.
+        scored = await scoreGame(gameId, {
+          client: admin,
+          requireFinal: false,
+          writeScoresOnly: true,
+        });
+      }
     }
 
     return NextResponse.json({ ok: true, isFinal, scored: scored.scored });

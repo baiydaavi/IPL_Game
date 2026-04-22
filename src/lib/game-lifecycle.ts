@@ -135,6 +135,16 @@ export async function scoreGame(
      * "Rescore" button.
      */
     allowRescore?: boolean;
+    /**
+     * Write provisional `scores` rows without flipping `games.status` to
+     * "scored" or setting `winner_user_id` / `scored_at`. Used by the
+     * live-refresh path so the UI can show running totals mid-match
+     * without prematurely sealing the result. Pair with
+     * `requireFinal: false`. Rule 3 bowler-coverage and rule 5 rain-draw
+     * are skipped on provisional runs to avoid punishing users for an
+     * incomplete innings.
+     */
+    writeScoresOnly?: boolean;
   } = {},
 ): Promise<ScoreGameResult> {
   const supabase = options.client ?? createSupabaseServiceClient();
@@ -203,6 +213,7 @@ export async function scoreGame(
     impactSubs,
     bowlerDesignations,
     winnerOverride: options.winnerOverride,
+    isFinal,
   });
 
   const winnerUserId = winnerFromScores(scores);
@@ -223,6 +234,13 @@ export async function scoreGame(
   if (scoresError) {
     console.error("[scoreGame] scores upsert failed", scoresError);
     return { scored: false, reason: "scores-upsert-failed" };
+  }
+
+  // Provisional live-update path: write the score rows but leave the
+  // game's lifecycle state alone. The end-of-match scoring run (called
+  // when isFinal flips true) will overwrite these rows and flip status.
+  if (options.writeScoresOnly) {
+    return { scored: true, winnerUserId };
   }
 
   const { error: gameUpdateError } = await supabase
