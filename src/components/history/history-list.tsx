@@ -5,28 +5,14 @@ import Link from "next/link";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
-import type { ScoreRow } from "@/lib/db-types";
+import { PicksTwoUp } from "@/components/home/picks-two-up";
 import { iplTeamCode } from "@/lib/ipl-teams";
 import type { PastGame } from "@/lib/past-games";
-import { accentFor } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 type Filters = {
   month: string | "all";
   winner: string | "all";
-};
-
-type ScoreBreakdown = {
-  players?: Array<{
-    player_id: string;
-    player_name: string;
-    runs: number;
-    wickets: number;
-    total: number;
-  }>;
-  team_pick?: string | null;
-  team_bonus?: number;
-  team_won?: boolean;
 };
 
 export function HistoryList({
@@ -269,75 +255,20 @@ function HistoryRow({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="grid grid-cols-2 gap-3 px-4 pb-4">
-              {game.members.map((m) => {
-                const accent = accentFor(m.slot);
-                const score = game.scores.find((s) => s.user_id === m.user_id);
-                return (
-                  <UserBreakdown
-                    key={m.user_id}
-                    name={m.user_id === currentUserId ? "You" : m.user.display_name}
-                    accentTextClass={accent.text}
-                    accentBgClass={accent.bgSoft}
-                    score={score}
-                  />
-                );
-              })}
+            <div className="px-4 pb-4">
+              <PicksTwoUp
+                members={game.members}
+                picks={game.picks}
+                scores={game.scores}
+                currentUserId={currentUserId}
+                showPoints
+                highlightWinner={game.game.winner_user_id}
+              />
             </div>
           </motion.div>
         ) : null}
       </AnimatePresence>
     </li>
-  );
-}
-
-function UserBreakdown({
-  name,
-  accentTextClass,
-  accentBgClass,
-  score,
-}: {
-  name: string;
-  accentTextClass: string;
-  accentBgClass: string;
-  score?: ScoreRow;
-}) {
-  const breakdown = (score?.breakdown ?? {}) as ScoreBreakdown;
-  const players = breakdown.players ?? [];
-  return (
-    <div className={cn("rounded-xl p-3", accentBgClass)}>
-      <div className="flex items-baseline justify-between">
-        <span
-          className={cn(
-            "text-xs font-medium uppercase tracking-wider truncate",
-            accentTextClass,
-          )}
-        >
-          {name}
-        </span>
-        <span className="font-mono text-lg font-semibold tabular-nums">
-          {score?.total ?? 0}
-        </span>
-      </div>
-      <ul className="mt-2 flex flex-col gap-1 text-xs">
-        {players.map((p) => (
-          <li key={p.player_id} className="flex items-baseline justify-between gap-2">
-            <span className="truncate">{p.player_name}</span>
-            <span className="font-mono text-muted tabular-nums">
-              {p.runs}r/{p.wickets}w · {p.total}
-            </span>
-          </li>
-        ))}
-        {breakdown.team_pick ? (
-          <li className="flex items-baseline justify-between gap-2">
-            <span className="truncate">{breakdown.team_pick} to win</span>
-            <span className="font-mono text-muted tabular-nums">
-              {breakdown.team_bonus ?? 0}
-            </span>
-          </li>
-        ) : null}
-      </ul>
-    </div>
   );
 }
 

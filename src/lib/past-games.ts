@@ -5,6 +5,7 @@ import type {
   GameMemberRow,
   GameRow,
   MatchCachedRow,
+  PickRow,
   ScoreRow,
   UserRow,
 } from "@/lib/db-types";
@@ -23,6 +24,7 @@ export type PastGame = {
   game: GameRow;
   match: Pick<MatchCachedRow, "match_id" | "date" | "team_a" | "team_b">;
   members: Array<GameMemberRow & { user: UserRow }>;
+  picks: PickRow[];
   scores: ScoreRow[];
 };
 
@@ -57,18 +59,26 @@ export async function getPastGames(
   const gameIds = games.map((g) => g.id);
   const matchIds = [...new Set(games.map((g) => g.match_id))];
 
-  const [{ data: matches }, { data: members }, { data: users }, { data: scores }] =
-    await Promise.all([
-      supabase
-        .from("matches_cached")
-        .select("match_id, date, team_a, team_b")
-        .in("match_id", matchIds),
-      supabase.from("game_members").select("*").in("game_id", gameIds),
-      supabase
-        .from("users")
-        .select("*"),
-      supabase.from("scores").select("*").in("game_id", gameIds),
-    ]);
+  const [
+    { data: matches },
+    { data: members },
+    { data: users },
+    { data: picks },
+    { data: scores },
+  ] = await Promise.all([
+    supabase
+      .from("matches_cached")
+      .select("match_id, date, team_a, team_b")
+      .in("match_id", matchIds),
+    supabase.from("game_members").select("*").in("game_id", gameIds),
+    supabase.from("users").select("*"),
+    supabase
+      .from("picks")
+      .select("*")
+      .in("game_id", gameIds)
+      .order("turn_index", { ascending: true }),
+    supabase.from("scores").select("*").in("game_id", gameIds),
+  ]);
 
   const matchById = new Map((matches ?? []).map((m) => [m.match_id, m]));
   const userById = new Map((users ?? []).map((u: UserRow) => [u.id, u]));
@@ -78,6 +88,9 @@ export async function getPastGames(
       .filter((m) => m.game_id === game.id)
       .map((m) => ({ ...m, user: userById.get(m.user_id)! }))
       .filter((m) => m.user);
+    const gPicks = ((picks ?? []) as PickRow[]).filter(
+      (p) => p.game_id === game.id,
+    );
     const gScores = ((scores ?? []) as ScoreRow[]).filter(
       (s) => s.game_id === game.id,
     );
@@ -85,6 +98,7 @@ export async function getPastGames(
       game,
       match: matchById.get(game.match_id)!,
       members: gMembers,
+      picks: gPicks,
       scores: gScores,
     };
   });
