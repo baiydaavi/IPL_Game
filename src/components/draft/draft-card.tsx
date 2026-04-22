@@ -259,31 +259,6 @@ export function DraftCard({
         </div>
       )}
 
-      {/* Input */}
-      {!turnState.isComplete && isMyTurn ? (
-        turnState.nextPickType === "player" ? (
-          <PlayerSearch
-            matchId={fixture.match_id}
-            disabledPlayerIds={disabledPlayerIds}
-            onPick={onPickPlayer}
-            isSubmitting={isSubmitting}
-          />
-        ) : (
-          <TeamPicker
-            teamA={fixture.team_a}
-            teamB={fixture.team_b}
-            onPick={onPickTeam}
-            isSubmitting={isSubmitting}
-          />
-        )
-      ) : null}
-
-      {error ? (
-        <div className="rounded-lg border border-live/30 bg-live/10 px-3 py-2 text-xs text-live">
-          {error}
-        </div>
-      ) : null}
-
       {/* Already picked summary */}
       <div className="grid grid-cols-2 gap-3">
         {(["P1", "P2"] as const).map((slot) => {
@@ -319,6 +294,31 @@ export function DraftCard({
           );
         })}
       </div>
+
+      {/* Input */}
+      {!turnState.isComplete && isMyTurn ? (
+        turnState.nextPickType === "player" ? (
+          <PlayerSearch
+            matchId={fixture.match_id}
+            disabledPlayerIds={disabledPlayerIds}
+            onPick={onPickPlayer}
+            isSubmitting={isSubmitting}
+          />
+        ) : (
+          <TeamPicker
+            teamA={fixture.team_a}
+            teamB={fixture.team_b}
+            onPick={onPickTeam}
+            isSubmitting={isSubmitting}
+          />
+        )
+      ) : null}
+
+      {error ? (
+        <div className="rounded-lg border border-live/30 bg-live/10 px-3 py-2 text-xs text-live">
+          {error}
+        </div>
+      ) : null}
     </div>
   );
 }
