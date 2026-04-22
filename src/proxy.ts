@@ -25,9 +25,9 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  // Demo and beta modes bypass real auth; the `demo_user` cookie decides
-  // identity. We still run the rest of the response pipeline normally.
-  if (process.env.DEMO_MODE === "1" || process.env.BETA_MODE === "1") {
+  // Demo mode bypasses real auth; the `demo_user` cookie decides identity.
+  // We still run the rest of the response pipeline normally.
+  if (process.env.DEMO_MODE === "1") {
     return response;
   }
 

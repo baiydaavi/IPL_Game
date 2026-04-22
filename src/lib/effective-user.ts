@@ -2,29 +2,23 @@ import "server-only";
 
 import type { UserRow } from "@/lib/db-types";
 import {
-  ensureBetaSeed,
   ensureDemoSeed,
   getDemoCurrentUser,
-  isBetaMode,
   isDemoMode,
 } from "@/lib/demo";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
- * Return the identity of the current caller. Prefers `DEMO_MODE` / `BETA_MODE`
- * when set (returns the demo-cookie user) and otherwise falls back to the
- * real Supabase Auth session.
+ * Return the identity of the current caller. Prefers `DEMO_MODE` when set
+ * (returns the demo-cookie user) and otherwise falls back to the real
+ * Supabase Auth session.
  *
  * All auth-gated routes should call this instead of `supabase.auth.getUser()`
- * directly so demo/beta mode works transparently.
+ * directly so demo mode works transparently.
  */
 export async function getEffectiveUser(): Promise<UserRow | null> {
   if (isDemoMode()) {
     await ensureDemoSeed();
-    return await getDemoCurrentUser();
-  }
-  if (isBetaMode()) {
-    await ensureBetaSeed();
     return await getDemoCurrentUser();
   }
 

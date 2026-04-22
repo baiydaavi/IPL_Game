@@ -13,7 +13,7 @@ export default function LoginPage({
 }: {
   searchParams: Promise<{ next?: string; sent?: string; error?: string }>;
 }) {
-  // In demo/beta mode real auth is off; send visitors straight home so they
+  // In demo mode real auth is off; send visitors straight home so they
   // don't land on a broken magic-link form.
   if (isIdentityBypassMode()) redirect("/");
   return (

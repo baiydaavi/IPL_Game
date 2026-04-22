@@ -2,16 +2,13 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-import { BetaIdentitySwitcher } from "@/components/demo/beta-identity-switcher";
 import { DemoPanel } from "@/components/demo/demo-panel";
 import {
   DEMO_EMAIL_P1,
   DEMO_EMAIL_P2,
   DEMO_USERS,
-  ensureBetaSeed,
   ensureDemoSeed,
   getDemoActiveEmail,
-  isBetaMode,
   isDemoMode,
   readDemoState,
   type DemoMatchState,
@@ -59,11 +56,6 @@ export default async function RootLayout({
     matchState: DemoMatchState;
     scenario: DemoScenario;
   } | null = null;
-  let betaProps: {
-    activeName: string;
-    otherEmail: string;
-    otherName: string;
-  } | null = null;
 
   if (isDemoMode()) {
     // Bootstrap the demo users + match on every render so a fresh DB or
@@ -83,22 +75,6 @@ export default async function RootLayout({
       matchState: state?.match_state ?? "not-started",
       scenario: state?.scenario ?? "normal",
     };
-  } else if (isBetaMode()) {
-    // Beta mode: only bootstrap the two fake users so the cookie picker has
-    // something to resolve to. Everything else (fixtures, squads, scoring)
-    // goes through the real CricAPI path.
-    await ensureBetaSeed().catch((err) => {
-      console.error("[beta seed on layout] failed", err);
-    });
-    const activeEmail = await getDemoActiveEmail();
-    const active = DEMO_USERS.find((u) => u.email === activeEmail) ?? DEMO_USERS[0];
-    const other = DEMO_USERS.find((u) => u.email !== activeEmail) ?? DEMO_USERS[1];
-    betaProps = {
-      activeName: active.display_name,
-      otherEmail:
-        activeEmail === DEMO_EMAIL_P1 ? DEMO_EMAIL_P2 : DEMO_EMAIL_P1,
-      otherName: other.display_name,
-    };
   }
 
   return (
@@ -109,7 +85,6 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col bg-background text-foreground">
         {children}
         {demoProps ? <DemoPanel {...demoProps} /> : null}
-        {betaProps ? <BetaIdentitySwitcher {...betaProps} /> : null}
       </body>
     </html>
   );

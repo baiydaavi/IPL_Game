@@ -17,7 +17,7 @@ import { createSupabaseServiceClient } from "@/lib/supabase/server";
  * can't accidentally activate in production.
  *
  * What it does:
- *   - Seeds two fake users (Avinash, Sanchit) + a `demo_user` cookie that
+ *   - Seeds two fake users (Player A, Player B) + a `demo_user` cookie that
  *     picks which one you're "logged in" as.
  *   - Seeds a fake fixture (CSK vs MI) + fake squads into the cache tables
  *     so the home-state resolver finds them.
@@ -41,8 +41,8 @@ export const DEMO_EMAIL_P1 = "avinash@demo.local";
 export const DEMO_EMAIL_P2 = "sanchit@demo.local";
 
 export const DEMO_USERS = [
-  { email: DEMO_EMAIL_P1, display_name: "Avinash" },
-  { email: DEMO_EMAIL_P2, display_name: "Sanchit" },
+  { email: DEMO_EMAIL_P1, display_name: "Player A" },
+  { email: DEMO_EMAIL_P2, display_name: "Player B" },
 ] as const;
 
 export function isDemoMode(): boolean {
@@ -50,23 +50,12 @@ export function isDemoMode(): boolean {
 }
 
 /**
- * Beta mode bypasses real auth the same way demo mode does (cookie-based
- * identity picker using the two DEMO_USERS), but keeps real CricAPI calls
- * intact and hides the rule-testing demo panel. Use this for a hosted beta
- * where you want friends to click into the app without a magic-link flow.
- */
-export function isBetaMode(): boolean {
-  return process.env.BETA_MODE === "1";
-}
-
-/**
- * True whenever we're bypassing real auth (demo OR beta). Use this for
- * identity-layer checks (who is the current user, should we use the service
- * client instead of the RLS-authed one, etc). DO NOT use this to decide
- * whether to call CricAPI or show rule-testing UI — that's `isDemoMode()`.
+ * True whenever we're bypassing real auth. Today that only means demo mode;
+ * kept as its own helper so identity-layer call sites read clearly and so
+ * any future bypass mode can be added in one place.
  */
 export function isIdentityBypassMode(): boolean {
-  return isDemoMode() || isBetaMode();
+  return isDemoMode();
 }
 
 /** Read the `demo_user` cookie; fall back to P1 (Avinash) on first visit. */
@@ -121,63 +110,69 @@ export type DemoStateRow = {
  * moves the fixture forward/backward in time.
  */
 /**
- * Seed (or re-read) the two fake users. Shared between demo mode and beta
- * mode — beta mode uses ONLY this and skips the fixture/squads/demo_state
- * seeding below, since beta uses real CricAPI data.
+ * Seed (or re-read) the two fake users. Used by demo mode.
  */
 async function ensureDemoUsers(): Promise<Record<string, string>> {
   const admin = createSupabaseServiceClient();
   const userIds: Record<string, string> = {};
   for (const u of DEMO_USERS) {
+    // Fast path: public.users row already present. Reconcile the display
+    // name in case DEMO_USERS was updated after this row was first seeded
+    // (e.g. renaming "Avinash" -> "Player A").
     const existing = await admin
       .from("users")
-      .select("id")
+      .select("id, display_name")
       .eq("email", u.email)
       .maybeSingle();
     if (existing.data?.id) {
       userIds[u.email] = existing.data.id;
+      if (existing.data.display_name !== u.display_name) {
+        await admin
+          .from("users")
+          .update({ display_name: u.display_name })
+          .eq("id", existing.data.id);
+      }
       continue;
     }
+
+    // No public.users row. Try to create a fresh auth user (which will
+    // auto-create the public.users row via the handle_new_user trigger).
     const { data, error } = await admin.auth.admin.createUser({
       email: u.email,
       email_confirm: true,
       user_metadata: { display_name: u.display_name },
       password: crypto.randomUUID(),
     });
-    if (error || !data.user) {
-      // If the user exists in auth.users but the public.users row was lost,
-      // fall through to a direct upsert on public.users. Rare but possible
-      // after a demo schema wipe.
-      console.warn("[demo seed] createUser failed, trying direct upsert", error);
-      const fallbackId = crypto.randomUUID();
-      await admin.from("users").upsert(
-        { id: fallbackId, email: u.email, display_name: u.display_name },
-        { onConflict: "email" },
-      );
-      const { data: retried } = await admin
-        .from("users")
-        .select("id")
-        .eq("email", u.email)
-        .maybeSingle();
-      if (retried?.id) userIds[u.email] = retried.id;
+    if (!error && data.user) {
+      userIds[u.email] = data.user.id;
       continue;
     }
-    userIds[u.email] = data.user.id;
+
+    // createUser failed. The most common reason is that the auth user
+    // exists but the public.users mirror row was dropped (e.g. after a
+    // one-off user migration that re-pointed game data to real-auth
+    // users and deleted the beta public.users rows). Look up the
+    // existing auth user's id and create a public.users row using THAT
+    // id — public.users.id is a FK to auth.users.id, so we can't just
+    // invent a random UUID.
+    if (error && (error as { code?: string }).code === "email_exists") {
+      const { data: authList } = await admin.auth.admin.listUsers();
+      const authUser = authList?.users.find((x) => x.email === u.email);
+      if (authUser) {
+        await admin.from("users").upsert(
+          { id: authUser.id, email: u.email, display_name: u.display_name },
+          { onConflict: "id" },
+        );
+        userIds[u.email] = authUser.id;
+        continue;
+      }
+    }
+
+    // Truly unexpected — log once and keep going so we don't spam the
+    // console on every request.
+    console.warn("[demo seed] could not resolve demo user", u.email, error);
   }
   return userIds;
-}
-
-/**
- * Beta-mode seeder. Only creates the two fake users so the app has a
- * cookie-pickable identity on a fresh hosted database. Everything else
- * (fixtures, squads, scoring) goes through the real CricAPI path.
- */
-export async function ensureBetaSeed(): Promise<DemoSeedResult> {
-  const userIds = await ensureDemoUsers();
-  return {
-    userP1Id: userIds[DEMO_EMAIL_P1]!,
-    userP2Id: userIds[DEMO_EMAIL_P2]!,
-  };
 }
 
 export async function ensureDemoSeed(): Promise<DemoSeedResult> {

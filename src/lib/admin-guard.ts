@@ -10,7 +10,7 @@ import { getEffectiveUser } from "@/lib/effective-user";
  * Shared auth guard for all /api/admin/* routes. Returns `null` when the
  * caller is a valid admin, or a NextResponse to return if not.
  *
- * In demo/beta mode every user is treated as an admin so the /admin UI works.
+ * In demo mode every user is treated as an admin so the /admin UI works.
  */
 export async function requireAdmin(): Promise<NextResponse | null> {
   const user = await getEffectiveUser();

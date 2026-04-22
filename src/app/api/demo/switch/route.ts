@@ -12,7 +12,7 @@ import {
  * Body: { email: "avinash@demo.local" | "sanchit@demo.local" }
  *
  * Sets the `demo_user` cookie so the next request sees the caller as the
- * selected identity. Available in DEMO_MODE and BETA_MODE.
+ * selected identity. Available in DEMO_MODE only.
  */
 export async function POST(request: Request) {
   if (!isIdentityBypassMode()) {
