@@ -6,6 +6,7 @@ import { PastGamesList } from "@/components/home/past-games-list";
 import { TopCard } from "@/components/home/top-card";
 import { UpcomingList } from "@/components/home/upcoming-list";
 import { getCurrentUser } from "@/lib/auth";
+import { getLeagueGamesRemaining } from "@/lib/cricket-cache";
 import { getHomeView } from "@/lib/home-state";
 import { getHeadToHead, getPastGames } from "@/lib/past-games";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
@@ -23,10 +24,11 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  const [view, pastGames, headToHead] = await Promise.all([
+  const [view, pastGames, headToHead, gamesRemaining] = await Promise.all([
     getHomeView(),
     getPastGames(5),
     getHeadToHead(),
+    getLeagueGamesRemaining().catch(() => null),
   ]);
 
   // Build slot map for head-to-head accent coloring. We look up the most
@@ -47,6 +49,7 @@ export default async function HomePage() {
           recentForm={headToHead.recentForm}
           currentUserId={user.id}
           slotByUserId={slotByUserId}
+          leagueGamesRemaining={gamesRemaining}
         />
       ) : null}
 
@@ -90,7 +93,7 @@ function SetupNeeded() {
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-4 px-6 py-12">
       <div>
         <span className="font-mono text-xs uppercase tracking-widest text-muted">
-          IPL Draft
+          Gully IPL Fantasy
         </span>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">
           Setup needed

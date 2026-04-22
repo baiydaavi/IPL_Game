@@ -178,6 +178,81 @@ export async function refreshFixtures(
 }
 
 // ---------------------------------------------------------------------------
+// Season summary
+// ---------------------------------------------------------------------------
+
+/**
+ * The IPL has 4 playoff matches every season (Qualifier 1, Eliminator,
+ * Qualifier 2, Final). CricAPI's `series_info` endpoint only includes
+ * the 70 league games in `matchList` for most of the season — the
+ * playoff fixtures appear in the list only once the 4 playoff-bound
+ * teams are known (usually 1–2 days before Qualifier 1). Until then we
+ * pad the remaining-games count with this constant so the UI surfaces
+ * the true "games left in the IPL" number.
+ *
+ * The moment ANY non-"Nth Match" row shows up in the cached list (i.e.
+ * at least one playoff fixture is now in the schedule), we trust the
+ * list and stop padding.
+ *
+ * Hardcoded because the API does not expose playoff counts separately.
+ * Revisit only if the IPL changes its playoff format.
+ */
+const IPL_PLAYOFF_COUNT = 4;
+
+/** Match names like "32nd Match, Indian Premier League 2026". */
+const LEAGUE_MATCH_NAME_RE = /\b\d+\s*(?:st|nd|rd|th)\s+Match\b/i;
+
+/**
+ * Count how many IPL games are still to come this season (upcoming +
+ * in-progress + yet-to-be-scheduled playoffs). Reads from the
+ * already-cached `matches_cached` table, so this costs ZERO CricketData
+ * API hits per call — as long as `getCachedFixtures()` has been called
+ * elsewhere recently (which it is, on every home-page render).
+ *
+ * "Remaining" = rows whose upstream payload does NOT report matchEnded.
+ * This correctly excludes rain-outs (CricAPI sets matchEnded=true on
+ * washouts too) while still counting any live match as remaining.
+ *
+ * Playoff handling: if every row in the list is a numbered league match
+ * ("Nth Match, Indian Premier League ..."), we add `IPL_PLAYOFF_COUNT`
+ * to the count because CricAPI hasn't yet populated the 4 playoff
+ * fixtures. Once at least one non-numbered row appears (Qualifier /
+ * Eliminator / Final / etc.), we assume the list is complete and use it
+ * as-is.
+ *
+ * Returns null if the cache is empty or the query fails — the caller
+ * should treat that as "don't render the pill" rather than a hard error.
+ */
+export async function getLeagueGamesRemaining(): Promise<number | null> {
+  const supabase = createSupabaseServiceClient();
+  // The IPL season is ~70 rows — cheap to pull the whole `raw_json` slice
+  // and count in JS. Avoids fragile PostgREST jsonb filter syntax.
+  const { data, error } = await supabase
+    .from("matches_cached")
+    .select("raw_json");
+  if (error) {
+    console.warn("[getLeagueGamesRemaining] query failed", error);
+    return null;
+  }
+  if (!data || data.length === 0) return null;
+
+  let remaining = 0;
+  let hasPlayoffRow = false;
+  for (const row of data) {
+    const raw = (row.raw_json ?? {}) as { matchEnded?: boolean; name?: string };
+    const isLeagueName = LEAGUE_MATCH_NAME_RE.test(raw.name ?? "");
+    if (!isLeagueName) hasPlayoffRow = true;
+    if (raw.matchEnded !== true) remaining += 1;
+  }
+
+  // Pad with the known playoff count only while CricAPI hasn't added the
+  // playoff fixtures yet. Once it has, the list is authoritative.
+  if (!hasPlayoffRow) remaining += IPL_PLAYOFF_COUNT;
+
+  return remaining;
+}
+
+// ---------------------------------------------------------------------------
 // Squads
 // ---------------------------------------------------------------------------
 
