@@ -1,7 +1,7 @@
 import { BowlerDesignationCard } from "@/components/home/bowler-designation-card";
 import { Countdown } from "@/components/home/countdown";
 import { DraftCard } from "@/components/draft/draft-card";
-import { FinishedExtras } from "@/components/home/finished-extras";
+import { MatchExtras } from "@/components/home/match-extras";
 import {
   ImpactSubCard,
   type SquadForImpact,
@@ -175,10 +175,6 @@ export async function TopCard({
             <span className="text-xs font-medium uppercase tracking-wider text-live">
               Live
             </span>
-            <MatchStartLabel
-              iso={state.fixture.date}
-              className="ml-auto text-xs uppercase tracking-wider text-muted"
-            />
           </div>
           <div className="mt-3">
             <MatchupHeader fixture={state.fixture} />
@@ -206,6 +202,7 @@ export async function TopCard({
               />
             </div>
           ) : null}
+          <MatchExtras matchId={state.fixture.match_id} isFinal={false} />
         </CardSection>
       </Card>
     );
@@ -261,12 +258,7 @@ export async function TopCard({
             bowlerDesignations={finished.bowlerDesignations}
           />
         </div>
-        <FinishedExtras
-          matchId={state.fixture.match_id}
-          members={finished.members}
-          bowlerDesignations={finished.bowlerDesignations}
-          impactSubs={finished.impactSubs}
-        />
+        <MatchExtras matchId={state.fixture.match_id} isFinal={true} />
       </CardSection>
     </Card>
   );
