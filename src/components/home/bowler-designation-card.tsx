@@ -2,14 +2,9 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, Target } from "lucide-react";
+import { Target } from "lucide-react";
 
-import type {
-  BowlerDesignationRow,
-  GameMemberRow,
-  PickRow,
-  UserRow,
-} from "@/lib/db-types";
+import type { BowlerDesignationRow, PickRow } from "@/lib/db-types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -28,14 +23,12 @@ import { cn } from "@/lib/utils";
 export function BowlerDesignationCard({
   gameId,
   currentUserId,
-  members,
   picks,
   designations,
   matchStartIso,
 }: {
   gameId: string;
   currentUserId: string;
-  members: Array<GameMemberRow & { user: UserRow }>;
   picks: PickRow[];
   designations: BowlerDesignationRow[];
   matchStartIso: string;
@@ -82,6 +75,14 @@ export function BowlerDesignationCard({
     });
   }
 
+  // Once the current user has designated, hide the card entirely — the
+  // target icon rendered on their drafted player in `PicksTwoUp` above
+  // communicates the choice. Show a short locked-out notice only if the
+  // match started before they picked.
+  if (myDesignation) {
+    return null;
+  }
+
   return (
     <div className="rounded-xl border border-border bg-surface-2/60 p-3">
       <div className="flex items-center gap-2">
@@ -100,15 +101,6 @@ export function BowlerDesignationCard({
       {myPicks.length < 3 ? (
         <div className="mt-3 text-xs text-muted">
           Finish your 3 player picks first.
-        </div>
-      ) : myDesignation ? (
-        // Already designated — show a locked pill instead of the picker.
-        <div className="mt-3 flex items-center gap-2 rounded-lg border border-p1/50 bg-p1/10 px-3 py-2 text-sm">
-          <Lock className="h-3.5 w-3.5 text-p1" />
-          <span className="flex-1 truncate">
-            <span className="text-muted">Locked in:</span>{" "}
-            <span className="text-foreground">{myDesignation.player_name}</span>
-          </span>
         </div>
       ) : (
         <div className="mt-3 flex flex-col gap-1.5">
@@ -135,24 +127,10 @@ export function BowlerDesignationCard({
         </div>
       )}
 
-      {/* Show each member's designation status so both players can see
-          whether the other has picked yet. Names only, not their player. */}
-      <div className="mt-3 flex items-center justify-between text-[11px] text-muted">
-        {members.map((m) => {
-          const theirs = designations.find((d) => d.user_id === m.user_id);
-          return (
-            <span key={m.user_id}>
-              <span className="text-foreground">{m.user.display_name}:</span>{" "}
-              {theirs ? theirs.player_name : "—"}
-            </span>
-          );
-        })}
-      </div>
-
       {error ? (
         <div className="mt-2 text-[11px] text-live">{error}</div>
       ) : null}
-      {matchStarted && !myDesignation ? (
+      {matchStarted ? (
         <div className="mt-2 text-[11px] text-live">
           Match started — designation locked.
         </div>

@@ -1,8 +1,15 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import type { ReactNode } from "react";
 
-import type { GameMemberRow, PickRow, ScoreRow, UserRow } from "@/lib/db-types";
+import type {
+  BowlerDesignationRow,
+  GameMemberRow,
+  PickRow,
+  ScoreRow,
+  UserRow,
+} from "@/lib/db-types";
 import { accentFor } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +24,8 @@ export function PicksTwoUp({
   currentUserId,
   showPoints,
   highlightWinner,
+  bowlerDesignations,
+  footerRight,
 }: {
   members: Array<GameMemberRow & { user: UserRow }>;
   picks: PickRow[];
@@ -24,6 +33,18 @@ export function PicksTwoUp({
   currentUserId: string;
   showPoints: boolean;
   highlightWinner?: string | null;
+  /**
+   * If provided, a dagger (†) is rendered next to the player each user
+   * designated as their bowler commitment, with a matching legend below
+   * the two-up grid.
+   */
+  bowlerDesignations?: BowlerDesignationRow[];
+  /**
+   * Optional node rendered on the right side of the footer row, sharing
+   * the line with the "† Designated bowler" legend. Used by the
+   * locked-pre-match state to tuck the countdown in next to the legend.
+   */
+  footerRight?: ReactNode;
 }) {
   const p1 = members.find((m) => m.slot === "P1");
   const p2 = members.find((m) => m.slot === "P2");
@@ -56,7 +77,8 @@ export function PicksTwoUp({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-2 gap-3">
       {[p1, p2].map((m) => {
         const accent = accentFor(m.slot);
         const userPicks = picks
@@ -67,6 +89,9 @@ export function PicksTwoUp({
 
         const teamPick = userPicks.find((p) => p.pick_type === "team");
         const playerPicks = userPicks.filter((p) => p.pick_type === "player");
+        const designatedPlayerId =
+          bowlerDesignations?.find((d) => d.user_id === m.user_id)?.player_id ??
+          null;
         const impactRows = (breakdown.players ?? []).filter(
           (x) => x.impact_sub_from,
         );
@@ -152,6 +177,19 @@ export function PicksTwoUp({
                             </span>
                           ) : null}
                           <span className="truncate">{p.player_name}</span>
+                          {p.player_id != null &&
+                          p.player_id === designatedPlayerId ? (
+                            <span
+                              title="Designated bowler"
+                              aria-label="Designated bowler"
+                              className={cn(
+                                "font-mono text-xs leading-none",
+                                accent.text,
+                              )}
+                            >
+                              †
+                            </span>
+                          ) : null}
                           {showPoints && playerLine?.bowled ? (
                             <span
                               title="Bowled in this match"
@@ -221,6 +259,20 @@ export function PicksTwoUp({
           </div>
         );
       })}
+      </div>
+      {(bowlerDesignations && bowlerDesignations.length > 0) || footerRight ? (
+        <div className="flex items-center justify-between gap-2">
+          {bowlerDesignations && bowlerDesignations.length > 0 ? (
+            <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted">
+              <span className="font-mono text-muted">†</span>
+              <span>Designated bowler</span>
+            </div>
+          ) : (
+            <span />
+          )}
+          {footerRight ? <div>{footerRight}</div> : null}
+        </div>
+      ) : null}
     </div>
   );
 }

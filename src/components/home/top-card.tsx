@@ -1,4 +1,5 @@
 import { BowlerDesignationCard } from "@/components/home/bowler-designation-card";
+import { Countdown } from "@/components/home/countdown";
 import { DraftCard } from "@/components/draft/draft-card";
 import { FinishedExtras } from "@/components/home/finished-extras";
 import {
@@ -6,23 +7,29 @@ import {
   type SquadForImpact,
 } from "@/components/home/impact-sub-card";
 import { LiveAutoPoll } from "@/components/home/live-auto-poll";
+import { MatchStartLabel } from "@/components/home/match-start-label";
 import { PicksTwoUp } from "@/components/home/picks-two-up";
 import { RefreshLiveButton } from "@/components/home/refresh-live-button";
 import { StartDraftButton } from "@/components/home/start-draft-button";
 import { TeamChip } from "@/components/team-chip";
-import { Card, CardSection } from "@/components/ui/card";
+import { Card, CardSection, type CardTint } from "@/components/ui/card";
 import { getCachedSquad } from "@/lib/cricket-cache";
 import type { CachedFixture } from "@/lib/fixtures";
 import type { HomeState } from "@/lib/home-state-types";
 import { iplTeamCode } from "@/lib/ipl-teams";
+import { teamPalette } from "@/lib/theme";
 
-function formatMatchTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, {
-    weekday: "short",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+/**
+ * Build a very subtle two-color tint for a match card, keyed off the two
+ * competing teams' jersey colors. Used as a diagonal gradient on the Card
+ * so every fixture has a faint sense of place (CSK vs MI → warm yellow
+ * fading into deep navy). Alpha is kept low on purpose so it never
+ * overwhelms the text or borders.
+ */
+function tintForFixture(fixture: CachedFixture): CardTint {
+  const a = teamPalette(iplTeamCode(fixture.team_a));
+  const b = teamPalette(iplTeamCode(fixture.team_b));
+  return { left: a.tint, right: b.tint };
 }
 
 function MatchupHeader({ fixture }: { fixture: CachedFixture }) {
@@ -33,9 +40,10 @@ function MatchupHeader({ fixture }: { fixture: CachedFixture }) {
       <TeamChip code={a} />
       <span className="text-sm text-muted">vs</span>
       <TeamChip code={b} />
-      <span className="ml-auto text-xs uppercase tracking-wider text-muted">
-        {formatMatchTime(fixture.date)}
-      </span>
+      <MatchStartLabel
+        iso={fixture.date}
+        className="ml-auto text-xs uppercase tracking-wider text-muted"
+      />
     </div>
   );
 }
@@ -80,7 +88,7 @@ export async function TopCard({
 
   if (state.kind === "match-today-no-draft") {
     return (
-      <Card>
+      <Card tint={tintForFixture(state.fixture)}>
         <CardSection>
           <MatchupHeader fixture={state.fixture} />
         </CardSection>
@@ -104,7 +112,7 @@ export async function TopCard({
 
   if (state.kind === "drafting") {
     return (
-      <Card>
+      <Card tint={tintForFixture(state.fixture)}>
         <CardSection>
           <MatchupHeader fixture={state.fixture} />
         </CardSection>
@@ -126,37 +134,27 @@ export async function TopCard({
   }
 
   if (state.kind === "locked-pre-match") {
-    const startMs = new Date(state.fixture.date).getTime();
-    const mins = Math.max(0, Math.round((startMs - Date.now()) / 60000));
-    const countdown =
-      mins < 60
-        ? `${mins} min`
-        : `${Math.floor(mins / 60)}h ${mins % 60}m`;
     return (
-      <Card>
+      <Card tint={tintForFixture(state.fixture)}>
         <CardSection>
           <MatchupHeader fixture={state.fixture} />
         </CardSection>
         <CardSection className="border-t border-border pt-4">
-          <div className="flex items-baseline justify-between">
-            <div className="text-xs font-medium uppercase tracking-wider text-muted">
-              Locked in
-            </div>
-            <div className="text-xs text-muted">starts in {countdown}</div>
-          </div>
-          <div className="mt-3">
-            <PicksTwoUp
-              members={state.game.members}
-              picks={state.game.picks}
-              currentUserId={currentUserId}
-              showPoints={false}
-            />
-          </div>
+          {/* The two team-colored pick cards already communicate "locked in"
+              visually, so the countdown is tucked into the footer next to
+              the dagger legend rather than taking its own row above. */}
+          <PicksTwoUp
+            members={state.game.members}
+            picks={state.game.picks}
+            currentUserId={currentUserId}
+            showPoints={false}
+            bowlerDesignations={state.game.bowlerDesignations}
+            footerRight={<Countdown startIso={state.fixture.date} />}
+          />
           <div className="mt-4">
             <BowlerDesignationCard
               gameId={state.game.game.id}
               currentUserId={currentUserId}
-              members={state.game.members}
               picks={state.game.picks}
               designations={state.game.bowlerDesignations}
               matchStartIso={state.fixture.date}
@@ -170,16 +168,17 @@ export async function TopCard({
   if (state.kind === "match-live") {
     const squads = await loadSquadsForImpact(state.fixture.match_id);
     return (
-      <Card>
+      <Card tint={tintForFixture(state.fixture)}>
         <CardSection>
           <div className="flex items-center gap-2">
             <span className="live-dot inline-block h-2 w-2 rounded-full bg-live" />
             <span className="text-xs font-medium uppercase tracking-wider text-live">
               Live
             </span>
-            <span className="ml-auto text-xs uppercase tracking-wider text-muted">
-              {formatMatchTime(state.fixture.date)}
-            </span>
+            <MatchStartLabel
+              iso={state.fixture.date}
+              className="ml-auto text-xs uppercase tracking-wider text-muted"
+            />
           </div>
           <div className="mt-3">
             <MatchupHeader fixture={state.fixture} />
@@ -192,6 +191,7 @@ export async function TopCard({
             scores={state.game.scores}
             currentUserId={currentUserId}
             showPoints={true}
+            bowlerDesignations={state.game.bowlerDesignations}
           />
           <div className="mt-4">
             <RefreshLiveButton gameId={state.game.game.id} />
@@ -217,7 +217,7 @@ export async function TopCard({
   const p1Score = finished.scores.find((s) => s.user_id === finished.members.find((m) => m.slot === "P1")?.user_id);
   const p2Score = finished.scores.find((s) => s.user_id === finished.members.find((m) => m.slot === "P2")?.user_id);
   return (
-    <Card>
+    <Card tint={tintForFixture(state.fixture)}>
       <CardSection>
         <MatchupHeader fixture={state.fixture} />
       </CardSection>
@@ -258,6 +258,7 @@ export async function TopCard({
             currentUserId={currentUserId}
             showPoints={finished.game.status === "scored"}
             highlightWinner={winnerId}
+            bowlerDesignations={finished.bowlerDesignations}
           />
         </div>
         <FinishedExtras
