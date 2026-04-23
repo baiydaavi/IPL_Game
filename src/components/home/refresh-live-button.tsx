@@ -17,6 +17,8 @@ export function RefreshLiveButton({ gameId }: { gameId: string }) {
       try {
         const res = await fetch(`/api/games/${gameId}/refresh`, {
           method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ manual: true }),
         });
         if (res.status === 429) {
           const body = (await res.json().catch(() => ({}))) as {

@@ -14,9 +14,13 @@ import { createSupabaseServiceClient } from "@/lib/supabase/server";
  * both the "Refresh now" button on the live match card and the 60s
  * client-side auto-poll.
  *
- * Rate-limited per user: one call every 30s. On the paid CricketData tier
- * (2000 hits/day) a 60s auto-poll is well inside budget, so the cooldown
- * is only here to defend against tight-loop bugs or tab duplication.
+ * Rate-limiting:
+ *   - Auto-poll requests share a per-user 30s cooldown to defend against
+ *     tight-loop bugs or duplicated tabs.
+ *   - Manual clicks (request body `{ manual: true }`) bypass the cooldown
+ *     entirely. A human tapping a button can't generate enough load to
+ *     matter on the paid CricketData tier (2000 hits/day), and getting
+ *     a 429 right after the auto-poll just-fired is confusing UX.
  */
 
 const REFRESH_COOLDOWN_MS = 30 * 1000;
@@ -27,7 +31,7 @@ const REFRESH_COOLDOWN_MS = 30 * 1000;
 const lastRefreshByUser = new Map<string, number>();
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: gameId } = await params;
@@ -37,14 +41,23 @@ export async function POST(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  const body = (await request.json().catch(() => ({}))) as {
+    manual?: boolean;
+  };
+  const isManual = body.manual === true;
+
   const now = Date.now();
-  const last = lastRefreshByUser.get(user.id);
-  if (last && now - last < REFRESH_COOLDOWN_MS) {
-    const retryInSec = Math.ceil((REFRESH_COOLDOWN_MS - (now - last)) / 1000);
-    return NextResponse.json(
-      { error: "rate_limited", retry_in_seconds: retryInSec },
-      { status: 429 },
-    );
+  if (!isManual) {
+    const last = lastRefreshByUser.get(user.id);
+    if (last && now - last < REFRESH_COOLDOWN_MS) {
+      const retryInSec = Math.ceil(
+        (REFRESH_COOLDOWN_MS - (now - last)) / 1000,
+      );
+      return NextResponse.json(
+        { error: "rate_limited", retry_in_seconds: retryInSec },
+        { status: 429 },
+      );
+    }
   }
   lastRefreshByUser.set(user.id, now);
 
