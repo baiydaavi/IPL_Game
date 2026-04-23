@@ -127,6 +127,8 @@ export async function TopCard({
             game={state.game.game}
             members={state.game.members}
             initialPicks={state.game.picks}
+            bowlerDesignations={state.game.bowlerDesignations}
+            matchStartIso={state.fixture.date}
           />
         </CardSection>
       </Card>

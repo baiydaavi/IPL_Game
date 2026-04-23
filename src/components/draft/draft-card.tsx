@@ -6,7 +6,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PlayerSearch, type SquadPlayer } from "@/components/draft/player-search";
 import { TeamPicker } from "@/components/draft/team-picker";
 import { TurnBoard } from "@/components/draft/turn-board";
-import type { GameMemberRow, GameRow, PickRow, UserRow } from "@/lib/db-types";
+import { BowlerDesignationCard } from "@/components/home/bowler-designation-card";
+import type {
+  BowlerDesignationRow,
+  GameMemberRow,
+  GameRow,
+  PickRow,
+  UserRow,
+} from "@/lib/db-types";
 import {
   deriveTurnState,
   partitionMembers,
@@ -23,6 +30,18 @@ export type DraftCardProps = {
   game: GameRow;
   members: Array<GameMemberRow & { user: UserRow }>;
   initialPicks: PickRow[];
+  /**
+   * Existing bowler designations for this game. The `BowlerDesignationCard`
+   * is rendered inside the draft so a player can lock in their bowler as
+   * soon as their 3 player picks are done — no need to wait for the full
+   * draft to finish / the page to flip to the locked-pre-match card.
+   */
+  bowlerDesignations: BowlerDesignationRow[];
+  /**
+   * ISO start time for the match, passed through to `BowlerDesignationCard`
+   * so it can hard-lock the selection once the match has actually begun.
+   */
+  matchStartIso: string;
 };
 
 export function DraftCard({
@@ -31,6 +50,8 @@ export function DraftCard({
   game,
   members: membersWithUsers,
   initialPicks,
+  bowlerDesignations,
+  matchStartIso,
 }: DraftCardProps) {
   const [picks, setPicks] = useState<PickRow[]>(initialPicks);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -313,6 +334,19 @@ export function DraftCard({
           />
         )
       ) : null}
+
+      {/* Bowler designation lives inside the draft card so it lights up the
+          moment the player's 3 player picks are in — no need to wait for
+          the opponent to finish. `BowlerDesignationCard` handles the
+          "Finish your 3 player picks first" placeholder itself, so it's
+          safe to mount unconditionally here. */}
+      <BowlerDesignationCard
+        gameId={game.id}
+        currentUserId={currentUserId}
+        picks={picks}
+        designations={bowlerDesignations}
+        matchStartIso={matchStartIso}
+      />
 
       {error ? (
         <div className="rounded-lg border border-live/30 bg-live/10 px-3 py-2 text-xs text-live">
