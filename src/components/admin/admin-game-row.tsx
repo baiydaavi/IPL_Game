@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Pencil, RefreshCw, Users } from "lucide-react";
+import { ChevronDown, CloudDownload, Pencil, RefreshCw, Users } from "lucide-react";
 
 import type { CricApiSquadEntry } from "@/lib/cricket";
 import type {
@@ -15,6 +15,7 @@ import type {
   UserRow,
 } from "@/lib/db-types";
 import { iplTeamCode } from "@/lib/ipl-teams";
+import { parseMatchDate } from "@/lib/match-time";
 import { IPL_TEAMS } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +43,7 @@ export function AdminGameRow({
   const [overriding, startOverride] = useTransition();
   const [editing, startEdit] = useTransition();
   const [refreshingSquad, startRefreshSquad] = useTransition();
+  const [refreshingScorecard, startRefreshScorecard] = useTransition();
   const [status, setStatus] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
 
@@ -143,7 +145,7 @@ export function AdminGameRow({
           <div className="text-[11px] uppercase tracking-wider text-muted">
             {game.status}
             {match?.date
-              ? ` · ${new Date(match.date).toLocaleDateString(undefined, {
+              ? ` · ${parseMatchDate(match.date).toLocaleDateString(undefined, {
                   month: "short",
                   day: "numeric",
                 })}`
@@ -165,8 +167,39 @@ export function AdminGameRow({
         </button>
         <button
           type="button"
+          onClick={() =>
+            startRefreshScorecard(() =>
+              call(`/api/admin/games/${game.id}/refresh-scorecard`),
+            )
+          }
+          disabled={
+            rescoring ||
+            overriding ||
+            editing ||
+            refreshingSquad ||
+            refreshingScorecard
+          }
+          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-surface-3 disabled:opacity-50"
+          title="Force-repull the scorecard from CricAPI and rescore (1 hit on paid tier)"
+        >
+          <CloudDownload
+            className={cn(
+              "h-3 w-3",
+              refreshingScorecard && "animate-pulse",
+            )}
+          />
+          Refresh scorecard
+        </button>
+        <button
+          type="button"
           onClick={() => startRescore(() => call(`/api/admin/games/${game.id}/rescore`))}
-          disabled={rescoring || overriding || editing || refreshingSquad}
+          disabled={
+            rescoring ||
+            overriding ||
+            editing ||
+            refreshingSquad ||
+            refreshingScorecard
+          }
           className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-surface-3 disabled:opacity-50"
         >
           <RefreshCw className={cn("h-3 w-3", rescoring && "animate-spin")} />
@@ -187,7 +220,13 @@ export function AdminGameRow({
                   call(`/api/admin/games/${game.id}/refresh-squad`),
                 )
               }
-              disabled={rescoring || overriding || editing || refreshingSquad}
+              disabled={
+                rescoring ||
+                overriding ||
+                editing ||
+                refreshingSquad ||
+                refreshingScorecard
+              }
               className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-surface-3 disabled:opacity-50"
               title="Force-repull the squad from CricAPI (1 hit on paid tier)"
             >
@@ -199,7 +238,13 @@ export function AdminGameRow({
             <AddSquadPlayer
               gameId={game.id}
               teams={squadTeams}
-              disabled={rescoring || overriding || editing || refreshingSquad}
+              disabled={
+                rescoring ||
+                overriding ||
+                editing ||
+                refreshingSquad ||
+                refreshingScorecard
+              }
               onDone={() => router.refresh()}
               onError={(msg) => setStatus(msg)}
             />
@@ -223,7 +268,13 @@ export function AdminGameRow({
                   }),
                 )
               }
-              disabled={overriding || rescoring || editing}
+              disabled={
+                overriding ||
+                rescoring ||
+                editing ||
+                refreshingSquad ||
+                refreshingScorecard
+              }
               className="rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-surface-2 disabled:opacity-50"
             >
               {code}
@@ -238,7 +289,13 @@ export function AdminGameRow({
                 }),
               )
             }
-            disabled={overriding || rescoring || editing}
+            disabled={
+              overriding ||
+              rescoring ||
+              editing ||
+              refreshingSquad ||
+              refreshingScorecard
+            }
             className="rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-muted transition-colors hover:bg-surface-2 disabled:opacity-50"
           >
             clear
@@ -267,7 +324,13 @@ export function AdminGameRow({
           squadPlayers={allSquadPlayers}
           teamCodes={teamCodes}
           membersByUserId={membersByUserId}
-          disabled={editing || rescoring || overriding}
+          disabled={
+            editing ||
+            rescoring ||
+            overriding ||
+            refreshingSquad ||
+            refreshingScorecard
+          }
           onAction={(url, body) => startEdit(() => call(url, body))}
         />
       ) : null}

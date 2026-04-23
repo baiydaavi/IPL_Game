@@ -17,8 +17,9 @@ import { createSupabaseServiceClient } from "@/lib/supabase/server";
  *                 We pass `forceScorecardRefresh: false` on purpose — the
  *                 admin just tweaked local inputs; no reason to burn a
  *                 CricAPI hit on every edit. If the admin wants a fresh
- *                 scorecard, they can click the "Rescore" button (which
- *                 does force refresh).
+ *                 scorecard, they can click the "Refresh scorecard" button
+ *                 on the admin game row (which forces a CricAPI repull
+ *                 and rescore).
  */
 export async function rescoreAfterEdit(
   gameId: string,
