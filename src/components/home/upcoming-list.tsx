@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { TeamChip } from "@/components/team-chip";
 import { Card, CardSection } from "@/components/ui/card";
 import type { CachedFixture } from "@/lib/fixtures";
@@ -55,7 +57,27 @@ function formatTime(d: Date): string {
 }
 
 export function UpcomingList({ fixtures }: { fixtures: CachedFixture[] }) {
+  // Both day-grouping and time-formatting depend on the ambient timezone.
+  // On the server (Vercel/Node, UTC) that produces different strings than
+  // in the viewer's browser, which manifested as "first load shows UTC,
+  // coming back from /history shows local". Defer all rendering until
+  // after mount so the browser's tz is always the one in effect.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   if (fixtures.length === 0) return null;
+  if (!mounted) {
+    return (
+      <Card>
+        <CardSection>
+          <h3 className="text-xs font-medium uppercase tracking-wider text-muted">
+            Upcoming
+          </h3>
+          <div className="mt-3 h-16" aria-hidden />
+        </CardSection>
+      </Card>
+    );
+  }
 
   // Bucket fixtures by their local-time day. Preserves the order the
   // caller handed us (already ascending by date), so groups emerge
