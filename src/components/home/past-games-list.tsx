@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
-import type { PastGame } from "@/lib/past-games";
 import { iplTeamCode } from "@/lib/ipl-teams";
+import { parseMatchDate } from "@/lib/match-time";
+import type { PastGame } from "@/lib/past-games";
 import { cn } from "@/lib/utils";
 
 /**
@@ -103,7 +104,7 @@ export function PastGamesList({
 
 function formatShortDate(iso: string): string {
   try {
-    const d = new Date(iso);
+    const d = parseMatchDate(iso);
     return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   } catch {
     return "";

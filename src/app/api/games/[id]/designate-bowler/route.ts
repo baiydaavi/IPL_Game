@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import type { GameRow, PickRow } from "@/lib/db-types";
 import { getEffectiveUser } from "@/lib/effective-user";
+import { parseMatchDate } from "@/lib/match-time";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 
 /**
@@ -67,7 +68,7 @@ export async function POST(
     .select("date")
     .eq("match_id", game.match_id)
     .maybeSingle();
-  if (matchRow?.date && new Date(matchRow.date).getTime() <= Date.now()) {
+  if (matchRow?.date && parseMatchDate(matchRow.date).getTime() <= Date.now()) {
     return NextResponse.json(
       { error: "match_already_started" },
       { status: 409 },

@@ -12,6 +12,7 @@ import {
 } from "@/lib/cricket";
 import type { CachedFixture } from "@/lib/fixtures";
 import { iplTeamCode } from "@/lib/ipl-teams";
+import { normalizeMatchIso } from "@/lib/match-time";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 
 export type { CachedFixture };
@@ -63,7 +64,10 @@ function normalizeFixture(m: CricApiMatchSummary): CachedFixture & {
   const [a, b] = m.teams;
   return {
     match_id: m.id,
-    date: m.dateTimeGMT,
+    // CricAPI's `dateTimeGMT` omits the `Z` suffix; normalize to explicit
+    // UTC so any later `new Date(...)` parse is unambiguous regardless of
+    // where (server or browser) the string ends up being deserialized.
+    date: normalizeMatchIso(m.dateTimeGMT),
     team_a: a ?? "",
     team_b: b ?? "",
     team_a_code: a ? iplTeamCode(a) : "",

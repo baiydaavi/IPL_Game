@@ -14,6 +14,7 @@ import { isIdentityBypassMode } from "@/lib/demo";
 import type { CachedFixture } from "@/lib/fixtures";
 import { lockIfReady, scoreGame } from "@/lib/game-lifecycle";
 import type { HomeState, HomeView } from "@/lib/home-state-types";
+import { parseMatchDate } from "@/lib/match-time";
 import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase/server";
 
 /**
@@ -43,22 +44,25 @@ function pickTodaysFixtures(fixtures: CachedFixture[]): CachedFixture[] {
 
   return fixtures
     .filter((f) => {
-      const t = new Date(f.date).getTime();
+      const t = parseMatchDate(f.date).getTime();
       return t >= windowStart && t <= windowEnd;
     })
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .sort(
+      (a, b) =>
+        parseMatchDate(a.date).getTime() - parseMatchDate(b.date).getTime(),
+    );
 }
 
 function isMatchLive(fixture: CachedFixture, game: GameRow): boolean {
   if (game.status !== "locked") return false;
-  const start = new Date(fixture.date).getTime();
+  const start = parseMatchDate(fixture.date).getTime();
   const now = Date.now();
   return now >= start && now <= start + 5 * 60 * 60 * 1000;
 }
 
 function isPreMatch(fixture: CachedFixture, game: GameRow): boolean {
   if (game.status !== "locked") return false;
-  return Date.now() < new Date(fixture.date).getTime();
+  return Date.now() < parseMatchDate(fixture.date).getTime();
 }
 
 /**
@@ -84,7 +88,7 @@ export async function getHomeView(): Promise<HomeView> {
   const upcoming = fixtures
     .filter((f) => {
       if (todayIds.has(f.match_id)) return false;
-      return new Date(f.date).getTime() > now;
+      return parseMatchDate(f.date).getTime() > now;
     })
     .slice(0, 3);
 
@@ -127,7 +131,7 @@ async function resolveFixtureState(
   // score as a forfeit. Safe to run on every visit — lockIfReady is a
   // no-op if the game is already locked, and scoreGame is a no-op if
   // it's already scored.
-  const kickoffMs = new Date(fixture.date).getTime();
+  const kickoffMs = parseMatchDate(fixture.date).getTime();
   if (game.status === "drafting" && Date.now() >= kickoffMs) {
     const lockResult = await lockIfReady(game.id);
     if (lockResult.locked && lockResult.forfeitUserId) {

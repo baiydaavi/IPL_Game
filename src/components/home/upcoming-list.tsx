@@ -4,6 +4,7 @@ import { TeamChip } from "@/components/team-chip";
 import { Card, CardSection } from "@/components/ui/card";
 import type { CachedFixture } from "@/lib/fixtures";
 import { iplTeamCode } from "@/lib/ipl-teams";
+import { parseMatchDate } from "@/lib/match-time";
 
 /**
  * Compute a YYYY-MM-DD key in the user's LOCAL timezone for a given ISO
@@ -61,7 +62,7 @@ export function UpcomingList({ fixtures }: { fixtures: CachedFixture[] }) {
   // naturally without an extra sort.
   const groups: Array<{ key: string; date: Date; fixtures: CachedFixture[] }> = [];
   for (const f of fixtures) {
-    const d = new Date(f.date);
+    const d = parseMatchDate(f.date);
     const key = localDayKey(d);
     const last = groups[groups.length - 1];
     if (last && last.key === key) {
@@ -104,7 +105,7 @@ export function UpcomingList({ fixtures }: { fixtures: CachedFixture[] }) {
                         suppressHydrationWarning
                         className="ml-auto font-mono text-xs tabular-nums text-muted"
                       >
-                        {formatTime(new Date(f.date))}
+                        {formatTime(parseMatchDate(f.date))}
                       </span>
                     </li>
                   );

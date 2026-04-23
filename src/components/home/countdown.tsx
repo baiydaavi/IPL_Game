@@ -3,6 +3,7 @@
 import { Lock } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { parseMatchDate } from "@/lib/match-time";
 import { cn } from "@/lib/utils";
 
 /**
@@ -21,7 +22,7 @@ export function Countdown({ startIso }: { startIso: string }) {
     return () => clearInterval(id);
   }, []);
 
-  const startMs = new Date(startIso).getTime();
+  const startMs = parseMatchDate(startIso).getTime();
   const mins = Math.max(0, Math.round((startMs - now) / 60000));
 
   const urgent = mins > 0 && mins < 15;

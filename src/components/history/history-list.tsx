@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import { PicksTwoUp } from "@/components/home/picks-two-up";
 import { iplTeamCode } from "@/lib/ipl-teams";
+import { parseMatchDate } from "@/lib/match-time";
 import type { PastGame } from "@/lib/past-games";
 import { cn } from "@/lib/utils";
 
@@ -41,7 +42,7 @@ export function HistoryList({
   const months = useMemo(() => {
     const set = new Set<string>();
     for (const g of games) {
-      const d = new Date(g.match.date);
+      const d = parseMatchDate(g.match.date);
       if (!Number.isNaN(d.getTime())) {
         set.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
       }
@@ -60,7 +61,7 @@ export function HistoryList({
   const filtered = useMemo(() => {
     return games.filter((g) => {
       if (filters.month !== "all") {
-        const d = new Date(g.match.date);
+        const d = parseMatchDate(g.match.date);
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
         if (key !== filters.month) return false;
       }
@@ -274,7 +275,7 @@ function HistoryRow({
 
 function formatShortDate(iso: string): string {
   try {
-    const d = new Date(iso);
+    const d = parseMatchDate(iso);
     return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   } catch {
     return "";

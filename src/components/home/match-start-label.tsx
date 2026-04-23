@@ -1,5 +1,7 @@
 "use client";
 
+import { parseMatchDate } from "@/lib/match-time";
+
 /**
  * Compact, local-timezone-aware label for a match start: prefers
  * "TODAY 7:00 AM" / "TOMORROW 7:00 AM" over a bare weekday so the viewer
@@ -17,7 +19,7 @@ export function MatchStartLabel({
   iso: string;
   className?: string;
 }) {
-  const d = new Date(iso);
+  const d = parseMatchDate(iso);
 
   const toKey = (x: Date) =>
     `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(

@@ -9,6 +9,7 @@ import type {
   PickRow,
 } from "@/lib/db-types";
 import { deriveTurnState, partitionMembers } from "@/lib/draft";
+import { parseMatchDate } from "@/lib/match-time";
 import { computeScore, winnerFromScores } from "@/lib/scoring";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 
@@ -62,7 +63,7 @@ export async function lockIfReady(
 
   const picks = (pickRows ?? []) as Pick<PickRow, "turn_index">[];
   const totalPicks = picks.length;
-  const matchStartMs = match?.date ? new Date(match.date).getTime() : null;
+  const matchStartMs = match?.date ? parseMatchDate(match.date).getTime() : null;
   const matchStarted = matchStartMs !== null && Date.now() >= matchStartMs;
 
   const ready = totalPicks >= 8 || matchStarted;

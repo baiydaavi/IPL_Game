@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Target } from "lucide-react";
 
 import type { BowlerDesignationRow, PickRow } from "@/lib/db-types";
+import { parseMatchDate } from "@/lib/match-time";
 import { cn } from "@/lib/utils";
 
 /**
@@ -41,7 +42,7 @@ export function BowlerDesignationCard({
   // component pure). Recomputed once on mount and every 30s.
   const [matchStarted, setMatchStarted] = useState(false);
   useEffect(() => {
-    const startMs = new Date(matchStartIso).getTime();
+    const startMs = parseMatchDate(matchStartIso).getTime();
     const check = () => setMatchStarted(startMs <= Date.now());
     check();
     const id = setInterval(check, 30_000);
