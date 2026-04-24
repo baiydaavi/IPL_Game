@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { normalizeDisplayName } from "@/lib/user-profile";
 
 /**
  * Supabase magic-link callback.
@@ -35,15 +36,18 @@ export async function GET(request: Request) {
 
   // First-time users get their display_name from the DB trigger
   // (raw_user_meta_data.display_name). Returning users already have a row,
-  // so we update it here if they typed a new name on this login.
-  if (displayName && displayName.trim()) {
+  // so we update it here if they typed a new name on this login. Run the
+  // same normalization the login action does so a returning user who
+  // retypes "Sanchit Aggarwal" still ends up stored as "Sanchit".
+  const normalizedName = normalizeDisplayName(displayName ?? "");
+  if (normalizedName) {
     const {
       data: { user },
     } = await supabase.auth.getUser();
     if (user) {
       await supabase
         .from("users")
-        .update({ display_name: displayName.trim() })
+        .update({ display_name: normalizedName })
         .eq("id", user.id);
     }
   }

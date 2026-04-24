@@ -1,6 +1,9 @@
 "use client";
 
 import { use, useState, useTransition } from "react";
+
+import { normalizeDisplayName, normalizeEmail } from "@/lib/user-profile";
+
 import { sendMagicLink } from "./actions";
 
 export function LoginForm({
@@ -18,20 +21,22 @@ export function LoginForm({
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLocalError(null);
-    const trimmedEmail = email.trim();
-    const trimmedName = displayName.trim();
-    if (!trimmedEmail) {
+    // Normalize client-side so what the user sees (in the "sent to" line
+    // after submit, for example) matches what we'll persist server-side.
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedName = normalizeDisplayName(displayName);
+    if (!normalizedEmail) {
       setLocalError("Enter your email.");
       return;
     }
-    if (!trimmedName) {
+    if (!normalizedName) {
       setLocalError("Enter your name.");
       return;
     }
     startTransition(async () => {
       const result = await sendMagicLink({
-        email: trimmedEmail,
-        displayName: trimmedName,
+        email: normalizedEmail,
+        displayName: normalizedName,
         next: searchParams.next ?? "/",
       });
       if (result.ok) {

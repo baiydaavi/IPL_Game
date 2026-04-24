@@ -24,7 +24,7 @@ For fresh projects where you'd rather not install the CLI:
 
 1. Open the Supabase dashboard → **SQL Editor**.
 2. For each file in `supabase/migrations/`, in order (`0001_*` first,
-   through `0007_*`), paste the contents into the editor and click **Run**.
+   through `0008_*`), paste the contents into the editor and click **Run**.
 
 The migrations are written to be idempotent (`create table if not exists`,
 `drop policy if exists` before creating), so re-running any file is safe.
