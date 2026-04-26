@@ -62,12 +62,17 @@ export function PicksTwoUp({
         /** True when the player bowled at least one ball in the match. */
         bowled?: boolean;
         /**
-         * Set by the scoring engine when this slot was credited via an
-         * impact-sub redirection (the original drafted player was subbed
-         * out, and this replacement wasn't separately drafted by the
-         * other user).
+         * Forward redirect: this contribution is the IN player credited
+         * to the slot of a drafted player who was subbed OUT. References
+         * the drafted (OUT) player.
          */
         impact_sub_from?: { player_id: string; player_name: string };
+        /**
+         * Reverse redirect: this contribution is the OUT player's pre-sub
+         * stats credited backward to the slot of a drafted player who
+         * came IN as the impact sub. References the drafted (IN) player.
+         */
+        impact_sub_to?: { player_id: string; player_name: string };
       }>;
       team_pick?: string | null;
       team_bonus?: number;
@@ -92,12 +97,31 @@ export function PicksTwoUp({
         const designatedPlayerId =
           bowlerDesignations?.find((d) => d.user_id === m.user_id)?.player_id ??
           null;
-        const impactRows = (breakdown.players ?? []).filter(
+        // Two flavors of impact-sub extra contributions, both rendered as
+        // a separate row beneath the drafted picks:
+        //   - impact_sub_from: IN player credited because OUR drafted
+        //     player was subbed OUT (forward redirect, "▲ subbed in").
+        //   - impact_sub_to:   OUT player's pre-sub stats credited
+        //     because OUR drafted player came IN as the sub
+        //     (reverse redirect, "▼ replaced").
+        const impactInRows = (breakdown.players ?? []).filter(
           (x) => x.impact_sub_from,
         );
+        const impactOutRows = (breakdown.players ?? []).filter(
+          (x) => x.impact_sub_to,
+        );
+        // Drafted players whose slots got an IN-redirect (i.e. they were
+        // subbed out). The ▼ glyph next to their name flags it.
         const subbedOutIds = new Set(
-          impactRows
+          impactInRows
             .map((x) => x.impact_sub_from?.player_id)
+            .filter((id): id is string => Boolean(id)),
+        );
+        // Drafted players who came IN as a sub (reverse redirect). The
+        // ▲ glyph next to their name flags it.
+        const cameInIds = new Set(
+          impactOutRows
+            .map((x) => x.impact_sub_to?.player_id)
             .filter((id): id is string => Boolean(id)),
         );
 
@@ -150,12 +174,20 @@ export function PicksTwoUp({
             <ul className="mt-2 flex flex-col gap-1 text-sm">
               <AnimatePresence initial={false}>
                 {playerPicks.map((p) => {
+                  // The drafted contribution row is the one whose
+                  // player_id matches the pick AND isn't itself a redirect
+                  // row (both impact_sub_from and impact_sub_to rows live
+                  // alongside the drafted row in `breakdown.players`).
                   const playerLine = breakdown.players?.find(
                     (x) =>
-                      x.player_id === p.player_id && !x.impact_sub_from,
+                      x.player_id === p.player_id &&
+                      !x.impact_sub_from &&
+                      !x.impact_sub_to,
                   );
                   const wasSubbedOut =
                     p.player_id != null && subbedOutIds.has(p.player_id);
+                  const cameInAsSub =
+                    p.player_id != null && cameInIds.has(p.player_id);
                   return (
                     <motion.li
                       key={p.id}
@@ -174,6 +206,15 @@ export function PicksTwoUp({
                               className="font-mono text-[10px] leading-none text-red-400"
                             >
                               ▼
+                            </span>
+                          ) : null}
+                          {cameInAsSub ? (
+                            <span
+                              title="Came in as impact sub"
+                              aria-label="Came in as impact sub"
+                              className="font-mono text-[10px] leading-none text-emerald-400"
+                            >
+                              ▲
                             </span>
                           ) : null}
                           <span className="truncate">{p.player_name}</span>
@@ -215,9 +256,9 @@ export function PicksTwoUp({
                   );
                 })}
                 {showPoints
-                  ? impactRows.map((imp) => (
+                  ? impactInRows.map((imp) => (
                       <motion.li
-                        key={`impact-${imp.player_id}`}
+                        key={`impact-in-${imp.player_id}`}
                         initial={{ opacity: 0, y: 4 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0 }}
@@ -232,6 +273,46 @@ export function PicksTwoUp({
                               className="font-mono text-[10px] leading-none text-emerald-400"
                             >
                               ▲
+                            </span>
+                            <span className="truncate">{imp.player_name}</span>
+                            {imp.bowled ? (
+                              <span
+                                title="Bowled in this match"
+                                aria-label="Bowled in this match"
+                                className="text-[11px] leading-none"
+                              >
+                                ⚾
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="font-mono text-[10px] tabular-nums text-muted/70">
+                            {imp.runs} runs · {imp.wickets} wkts
+                          </span>
+                        </span>
+                        <span className="font-mono text-xs tabular-nums text-muted">
+                          +{imp.total}
+                        </span>
+                      </motion.li>
+                    ))
+                  : null}
+                {showPoints
+                  ? impactOutRows.map((imp) => (
+                      <motion.li
+                        key={`impact-out-${imp.player_id}`}
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="flex items-start justify-between gap-2"
+                      >
+                        <span className="flex min-w-0 flex-1 flex-col">
+                          <span className="flex min-w-0 items-baseline gap-1.5">
+                            <span
+                              title="Replaced (impact player)"
+                              aria-label="Replaced"
+                              className="font-mono text-[10px] leading-none text-red-400"
+                            >
+                              ▼
                             </span>
                             <span className="truncate">{imp.player_name}</span>
                             {imp.bowled ? (

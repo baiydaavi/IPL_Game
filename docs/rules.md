@@ -53,25 +53,42 @@ for both players' team picks.
 
 ### Rule 1 — Impact Player
 
-When an impact substitution happens in the real match, the drafted player
-who was subbed out normally stops scoring. Neither player has to have
-picked the substitute; the rule redirects the out-going player's slot to
-the new player **only if the replacement wasn't already drafted by the
-opposing player**.
+When an impact substitution happens in the real match, the drafted slot
+for the player involved (either as the OUT or the IN player) absorbs the
+*other* half of the substitution — provided that player isn't already
+drafted by someone, in which case they're already scoring normally.
+
+Both directions are symmetric:
+
+- **Forward (your drafted player went OUT)**: the IN player's stats are
+  added to your slot — unless the IN player is drafted by your opponent
+  (in which case they score normally for the opponent and your slot just
+  stops at the OUT player's pre-sub stats).
+- **Reverse (your drafted player came IN)**: the OUT player's pre-sub
+  stats are added to your slot — unless the OUT player is drafted by
+  your opponent (same reason: they already score normally for the
+  opponent).
 
 Mechanics:
 
 1. Both players can report an impact substitution via the live card.
-2. When the app scores, for every reported impact sub:
-  - If the sub-in player is not one of the opponent's drafted players,
-   the sub-in player's runs + wickets are credited to the slot that
-   held the sub-out player.
-  - If the sub-in player **is** already drafted by the opponent, they
-  score for the opponent and your slot simply stops at whatever the
-  sub-out player produced before being substituted.
+2. For every reported impact sub, the scorer:
+   - Looks up which user (if any) drafted the IN player and which (if
+     any) drafted the OUT player.
+   - Adds a forward redirect contribution to the OUT player's slot
+     **only if the IN player isn't drafted by the opponent**.
+   - Adds a reverse redirect contribution to the IN player's slot
+     **only if the OUT player isn't drafted by anyone** (including the
+     drafter themselves — that case is already covered by the OUT
+     player's own normal scoring).
 
-The result is displayed on the scored card with a red ▼ next to the
-subbed-out name and a green ▲ row for the sub-in.
+The result is displayed on the scored card:
+
+- A drafted player who was subbed OUT gets a red ▼ next to their name,
+  and a separate green ▲ row shows the IN player's contribution.
+- A drafted player who came IN as the sub gets a green ▲ next to their
+  name, and a separate red ▼ row shows the OUT player's pre-sub
+  contribution.
 
 ### Rule 2 — Bowler Penalty (designation rule)
 

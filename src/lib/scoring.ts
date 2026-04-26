@@ -25,8 +25,24 @@ export type PlayerContribution = {
   total: number;
   /** True when this player bowled at least one ball in the match. */
   bowled: boolean;
-  /** Set when this slot was credited via an impact-sub redirection. */
+  /**
+   * Set when THIS contribution represents the impact-sub IN player credited
+   * to a slot whose drafted player was subbed OUT. The `player_id` here is
+   * the IN player; the field references the original drafted (OUT) player
+   * that opens this slot.
+   */
   impact_sub_from?: { player_id: string; player_name: string };
+  /**
+   * Set when THIS contribution represents the impact-sub OUT player credited
+   * BACKWARD to the drafted IN player's slot. The `player_id` here is the
+   * OUT player; the field references the drafted IN player whose slot
+   * pulled in these pre-sub stats.
+   *
+   * Mutually exclusive with `impact_sub_from`. Both directions tag the
+   * extra contribution row so the UI can render it next to its parent
+   * drafted slot.
+   */
+  impact_sub_to?: { player_id: string; player_name: string };
 };
 
 export type ScoreBreakdown = {
@@ -330,13 +346,31 @@ export function computeScore({
     string,
     { inPlayerId: string; inPlayerName: string }
   >();
+  // Map from an impact-subbed-IN player_id -> the OUT player_id. The
+  // reverse direction: if YOU drafted the IN player, your slot pulls in
+  // the OUT player's pre-sub stats too. Only used when the OUT player
+  // was not separately drafted by EITHER user — if anyone drafted them
+  // they already score for that user via the normal pick path (or via
+  // the forward redirectByOutId path), and we don't double-count.
+  const redirectByInId = new Map<
+    string,
+    { outPlayerId: string; outPlayerName: string }
+  >();
   for (const sub of impactSubs) {
     const inWasDraftedBy = draftedPlayerOwner.get(sub.in_player_id);
-    if (inWasDraftedBy) continue; // sub already scores normally
-    redirectByOutId.set(sub.out_player_id, {
-      inPlayerId: sub.in_player_id,
-      inPlayerName: sub.in_player_name,
-    });
+    if (!inWasDraftedBy) {
+      redirectByOutId.set(sub.out_player_id, {
+        inPlayerId: sub.in_player_id,
+        inPlayerName: sub.in_player_name,
+      });
+    }
+    const outWasDraftedBy = draftedPlayerOwner.get(sub.out_player_id);
+    if (inWasDraftedBy && !outWasDraftedBy) {
+      redirectByInId.set(sub.in_player_id, {
+        outPlayerId: sub.out_player_id,
+        outPlayerName: sub.out_player_name,
+      });
+    }
   }
 
   const byUser = new Map<string, UserScore>();
@@ -364,19 +398,20 @@ export function computeScore({
       existing.runs_points += runs_points;
       existing.wickets_points += wickets_points;
 
-      // If this drafted player was impact-subbed OUT and their replacement
-      // wasn't separately drafted, add the replacement's stats as an extra
-      // contribution slot for the same owner.
-      const redirect = redirectByOutId.get(pick.player_id);
-      if (redirect) {
-        const sub = lookupStats(stats, redirect.inPlayerId, redirect.inPlayerName);
+      // Forward redirect: this drafted player was subbed OUT and their
+      // replacement wasn't separately drafted by the opponent. Add the
+      // replacement's stats as an extra contribution slot for the same
+      // owner ("your slot keeps producing").
+      const fwd = redirectByOutId.get(pick.player_id);
+      if (fwd) {
+        const sub = lookupStats(stats, fwd.inPlayerId, fwd.inPlayerName);
         const subRuns = sub?.runs ?? 0;
         const subWickets = sub?.wickets ?? 0;
         const subRunsPoints = subRuns * POINTS_PER_RUN;
         const subWicketsPoints = subWickets * POINTS_PER_WICKET;
         existing.breakdown.players.push({
-          player_id: redirect.inPlayerId,
-          player_name: sub?.name ?? redirect.inPlayerName,
+          player_id: fwd.inPlayerId,
+          player_name: sub?.name ?? fwd.inPlayerName,
           runs: subRuns,
           wickets: subWickets,
           runs_points: subRunsPoints,
@@ -390,6 +425,35 @@ export function computeScore({
         });
         existing.runs_points += subRunsPoints;
         existing.wickets_points += subWicketsPoints;
+      }
+
+      // Reverse redirect: this drafted player came IN as the impact sub
+      // and the player they replaced wasn't drafted by anyone. Pull the
+      // OUT player's pre-sub stats into the same slot ("your slot benefits
+      // from the sub event in both directions").
+      const rev = redirectByInId.get(pick.player_id);
+      if (rev) {
+        const out = lookupStats(stats, rev.outPlayerId, rev.outPlayerName);
+        const outRuns = out?.runs ?? 0;
+        const outWickets = out?.wickets ?? 0;
+        const outRunsPoints = outRuns * POINTS_PER_RUN;
+        const outWicketsPoints = outWickets * POINTS_PER_WICKET;
+        existing.breakdown.players.push({
+          player_id: rev.outPlayerId,
+          player_name: out?.name ?? rev.outPlayerName,
+          runs: outRuns,
+          wickets: outWickets,
+          runs_points: outRunsPoints,
+          wickets_points: outWicketsPoints,
+          total: outRunsPoints + outWicketsPoints,
+          bowled: (out?.overs ?? 0) > 0,
+          impact_sub_to: {
+            player_id: pick.player_id,
+            player_name: contribution.player_name,
+          },
+        });
+        existing.runs_points += outRunsPoints;
+        existing.wickets_points += outWicketsPoints;
       }
     } else if (pick.pick_type === "team" && pick.team_code) {
       existing.breakdown.team_pick = pick.team_code;
@@ -436,15 +500,20 @@ export function computeScore({
 
       const designation = designationByUser.get(userId);
       if (designation) {
-        // Zero the designated player's contribution AND its impact-sub
-        // replacement (if any). The rule treats the designated slot as
-        // a single commitment: if the designated bowler was subbed out
-        // and the sub also didn't bowl, neither side of that slot earns
-        // points. Other drafted picks keep their points.
+        // Zero the designated player's contribution AND any contribution
+        // that's in the same slot via either redirect direction:
+        //   - impact_sub_from: the IN player credited because the
+        //     designated drafted player was subbed OUT.
+        //   - impact_sub_to: the OUT player credited because the
+        //     designated drafted player came IN as the sub.
+        // The rule treats the designated slot as a single commitment:
+        // if neither half of that slot bowled, neither earns points.
+        // Other drafted picks keep their points.
         for (const contrib of score.breakdown.players) {
           const isDesignated = contrib.player_id === designation.player_id;
           const isSubForDesignated =
-            contrib.impact_sub_from?.player_id === designation.player_id;
+            contrib.impact_sub_from?.player_id === designation.player_id ||
+            contrib.impact_sub_to?.player_id === designation.player_id;
           if (isDesignated || isSubForDesignated) {
             contrib.runs_points = 0;
             contrib.wickets_points = 0;
