@@ -98,9 +98,38 @@ export async function POST(
 
     return NextResponse.json({ ok: true, isFinal, scored: scored.scored });
   } catch (err) {
+    // Surface the upstream reason all the way to the client so the button
+    // can show something more useful than "Couldn't refresh." This is
+    // particularly handy in production where we don't easily see Vercel
+    // logs from a phone. The message comes from CricketApiError, which
+    // already includes the failing path + reason ("CricketData
+    // match_scorecard returned status=failure reason=...").
+    const message = err instanceof Error ? err.message : String(err);
+
+    // Soft-failure case: CricAPI hasn't published a scorecard for this
+    // match yet. Common between toss and the first ball, sometimes
+    // continuing through the early overs. Returning 200 with a friendly
+    // payload keeps the auto-poll polling and lets the button show a
+    // calm "scorecard not posted yet" instead of a scary error. Match
+    // the literal error strings CricAPI returns:
+    //   "ERR: Scorecard <id> not found"
+    //   "Scorecard not available yet"
+    if (
+      /scorecard.*not\s+(found|available)/i.test(message) ||
+      /not\s+found/i.test(message)
+    ) {
+      return NextResponse.json({
+        ok: true,
+        isFinal: false,
+        scored: false,
+        scorecard_pending: true,
+        message: "Scorecard not posted yet — check back in a minute.",
+      });
+    }
+
     console.error("[refresh] failed", err);
     return NextResponse.json(
-      { error: "upstream_failed", message: (err as Error).message },
+      { error: "upstream_failed", message },
       { status: 502 },
     );
   }

@@ -30,12 +30,36 @@ export function RefreshLiveButton({ gameId }: { gameId: string }) {
           return;
         }
         if (!res.ok) {
-          setStatus("Couldn't refresh. Try again shortly.");
+          // Surface the actual upstream reason when the route returns one
+          // (e.g. "CricketData match_scorecard returned status=failure
+          // reason=Scorecard not available yet"). Falls back to the
+          // generic message when the body isn't JSON or has no message.
+          const body = (await res.json().catch(() => ({}))) as {
+            message?: string;
+            error?: string;
+          };
+          const detail = body.message ?? body.error;
+          setStatus(
+            detail
+              ? `Couldn't refresh: ${detail}`
+              : "Couldn't refresh. Try again shortly.",
+          );
           return;
         }
+        // 200 success — but the route may also signal "scorecard not
+        // posted yet" as a soft-success so the auto-poll keeps trying.
+        // Show the friendly message instead of silently doing nothing.
+        const ok = (await res.json().catch(() => ({}))) as {
+          scorecard_pending?: boolean;
+          message?: string;
+        };
+        if (ok.scorecard_pending && ok.message) {
+          setStatus(ok.message);
+        }
         router.refresh();
-      } catch {
-        setStatus("Network error. Try again.");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setStatus(`Network error: ${message}`);
       }
     });
   }
