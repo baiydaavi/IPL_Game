@@ -41,6 +41,7 @@ export function AdminGameRow({
   const router = useRouter();
   const [rescoring, startRescore] = useTransition();
   const [overriding, startOverride] = useTransition();
+  const [forcingWinner, startForceWinner] = useTransition();
   const [editing, startEdit] = useTransition();
   const [refreshingSquad, startRefreshSquad] = useTransition();
   const [refreshingScorecard, startRefreshScorecard] = useTransition();
@@ -175,6 +176,7 @@ export function AdminGameRow({
           disabled={
             rescoring ||
             overriding ||
+            forcingWinner ||
             editing ||
             refreshingSquad ||
             refreshingScorecard
@@ -196,6 +198,7 @@ export function AdminGameRow({
           disabled={
             rescoring ||
             overriding ||
+            forcingWinner ||
             editing ||
             refreshingSquad ||
             refreshingScorecard
@@ -223,6 +226,7 @@ export function AdminGameRow({
               disabled={
                 rescoring ||
                 overriding ||
+                forcingWinner ||
                 editing ||
                 refreshingSquad ||
                 refreshingScorecard
@@ -241,6 +245,7 @@ export function AdminGameRow({
               disabled={
                 rescoring ||
                 overriding ||
+                forcingWinner ||
                 editing ||
                 refreshingSquad ||
                 refreshingScorecard
@@ -270,6 +275,7 @@ export function AdminGameRow({
               }
               disabled={
                 overriding ||
+                forcingWinner ||
                 rescoring ||
                 editing ||
                 refreshingSquad ||
@@ -291,10 +297,84 @@ export function AdminGameRow({
             }
             disabled={
               overriding ||
+              forcingWinner ||
               rescoring ||
               editing ||
               refreshingSquad ||
               refreshingScorecard
+            }
+            className="rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-muted transition-colors hover:bg-surface-2 disabled:opacity-50"
+          >
+            clear
+          </button>
+        </div>
+      ) : null}
+
+      {/* Force winner: bypass scoring entirely and pick a player as the
+          winner. Last-resort escape hatch for matches CricAPI never
+          publishes a scorecard for. Per `/api/admin/games/[id]/override-player-winner`. */}
+      {members.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] uppercase tracking-wider text-muted">
+            Force winner:
+          </span>
+          {members.map((m) => {
+            const isCurrent = m.user_id === game.winner_user_id;
+            return (
+              <button
+                key={m.user_id}
+                type="button"
+                onClick={() =>
+                  startForceWinner(() =>
+                    call(
+                      `/api/admin/games/${game.id}/override-player-winner`,
+                      { user_id: m.user_id },
+                    ),
+                  )
+                }
+                disabled={
+                  forcingWinner ||
+                  overriding ||
+                  rescoring ||
+                  editing ||
+                  refreshingSquad ||
+                  refreshingScorecard
+                }
+                className={cn(
+                  "rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors disabled:opacity-50",
+                  isCurrent
+                    ? "border-p1 bg-p1/15 text-foreground"
+                    : "border-border text-foreground hover:bg-surface-2",
+                )}
+                title={
+                  isCurrent
+                    ? `${m.user.display_name} is currently the winner`
+                    : `Force ${m.user.display_name} as the winner`
+                }
+              >
+                {m.user.display_name}
+                {isCurrent ? " ✓" : ""}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() =>
+              startForceWinner(() =>
+                call(
+                  `/api/admin/games/${game.id}/override-player-winner`,
+                  { user_id: null },
+                ),
+              )
+            }
+            disabled={
+              forcingWinner ||
+              overriding ||
+              rescoring ||
+              editing ||
+              refreshingSquad ||
+              refreshingScorecard ||
+              game.winner_user_id === null
             }
             className="rounded-full border border-border px-2.5 py-1 text-[11px] font-medium text-muted transition-colors hover:bg-surface-2 disabled:opacity-50"
           >
@@ -328,6 +408,7 @@ export function AdminGameRow({
             editing ||
             rescoring ||
             overriding ||
+            forcingWinner ||
             refreshingSquad ||
             refreshingScorecard
           }
